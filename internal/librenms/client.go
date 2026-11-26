@@ -16,6 +16,14 @@ import (
 
 const defaultTimeout = 15 * time.Second
 
+// LibreNMSClient defines the read contract used by enrichment workers and mocks.
+type LibreNMSClient interface {
+	GetDevice(ctx context.Context, hostname string) (*Device, error)
+	ListDevices(ctx context.Context) ([]Device, error)
+}
+
+var _ LibreNMSClient = (*Client)(nil)
+
 // Client communicates with a LibreNMS server.
 type Client struct {
 	baseURL string

@@ -19,6 +19,16 @@ const (
 	defaultQueryDuration = 15 * time.Minute
 )
 
+// Flow is the canonical flow record type exported for event enrichment.
+type Flow = FlowRecord
+
+// AkvoradoClient defines the flow-query contract used by enrichment workers and mocks.
+type AkvoradoClient interface {
+	QueryFlows(ctx context.Context, src, dst string, duration time.Duration) ([]Flow, error)
+}
+
+var _ AkvoradoClient = (*Client)(nil)
+
 // Client communicates with an Akvorado instance.
 type Client struct {
 	baseURL string
