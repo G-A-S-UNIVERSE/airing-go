@@ -2,6 +2,8 @@ package akvorado_test
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,18 +13,28 @@ import (
 	"github.com/G-A-S-UNIVERSE/airing-go/internal/akvorado"
 )
 
+type capturedGraphReq struct {
+	Start      string   `json:"start"`
+	End        string   `json:"end"`
+	Dimensions []string `json:"dimensions"`
+	Filter     string   `json:"filter"`
+	Limit      int      `json:"limit"`
+	Points     int      `json:"points"`
+	Units      string   `json:"units"`
+}
+
 func TestGetFlowSummary_Success(t *testing.T) {
-	var gotPath, gotIface string
+	var gotPath, gotMethod string
+	var gotReq capturedGraphReq
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		gotIface = r.URL.Query().Get("interface")
+		gotMethod = r.Method
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &gotReq)
 		_, _ = w.Write([]byte(`{
-			"interface": "sfp-sfpplus1",
-			"in_bps": 4500000000,
-			"out_bps": 1200000000,
-			"top_talkers": [
-				{"src_ip": "192.0.2.10", "bps": 950000000}
-			]
+			"rows": [["192.0.2.10"], ["Other"]],
+			"average": [950000000, 3550000000],
+			"total": [28500000000, 106500000000]
 		}`))
 	}))
 	defer srv.Close()
@@ -32,8 +44,11 @@ func TestGetFlowSummary_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if gotPath != "/api/v0/flows/summary" || gotIface != "sfp-sfpplus1" {
-		t.Fatalf("unexpected request: path=%q iface=%q", gotPath, gotIface)
+	if gotMethod != http.MethodPost || gotPath != "/api/v0/console/graph/line" {
+		t.Fatalf("unexpected request: %s %s", gotMethod, gotPath)
+	}
+	if gotReq.Filter != `InIfName = "sfp-sfpplus1"` || gotReq.Units != "l3bps" || gotReq.Points != 10 {
+		t.Fatalf("unexpected graph/line payload: %+v", gotReq)
 	}
 	if summary.InBps != 4500000000 || len(summary.TopTalkers) != 1 || summary.TopTalkers[0].SrcIP != "192.0.2.10" {
 		t.Fatalf("unexpected summary: %+v", summary)
@@ -41,29 +56,53 @@ func TestGetFlowSummary_Success(t *testing.T) {
 }
 
 func TestQueryFlows_Success(t *testing.T) {
-	var gotSrc, gotDst, gotDur string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		gotSrc = q.Get("src")
-		gotDst = q.Get("dst")
-		gotDur = q.Get("duration")
-		_, _ = w.Write([]byte(`[
-			{"src_ip": "192.0.2.10", "dst_ip": "198.51.100.20", "protocol": "UDP", "bytes": 1048576, "packets": 1024, "bps": 8388608}
-		]`))
-	}))
-	defer srv.Close()
+	t.Run("ip filter", func(t *testing.T) {
+		var gotReq capturedGraphReq
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &gotReq)
+			_, _ = w.Write([]byte(`{
+				"rows": [["192.0.2.10", "198.51.100.20"], ["Other", "Other"]],
+				"average": [8388608, 1000000],
+				"total": [8388608, 1000000]
+			}`))
+		}))
+		defer srv.Close()
 
-	client := akvorado.New(akvorado.Config{BaseURL: srv.URL})
-	rows, err := client.QueryFlows(context.Background(), "192.0.2.10", "198.51.100.20", 10*time.Minute)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if gotSrc != "192.0.2.10" || gotDst != "198.51.100.20" || gotDur != "10m0s" {
-		t.Fatalf("unexpected query params: src=%q dst=%q dur=%q", gotSrc, gotDst, gotDur)
-	}
-	if len(rows) != 1 || rows[0].Protocol != "UDP" {
-		t.Fatalf("unexpected flow rows: %+v", rows)
-	}
+		client := akvorado.New(akvorado.Config{BaseURL: srv.URL})
+		rows, err := client.QueryFlows(context.Background(), "192.0.2.10", "198.51.100.20", 10*time.Minute)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if gotReq.Filter != "SrcAddr = 192.0.2.10 AND DstAddr = 198.51.100.20" {
+			t.Fatalf("unexpected IP filter: %q", gotReq.Filter)
+		}
+		if len(rows) != 1 || rows[0].SrcIP != "192.0.2.10" || rows[0].DstIP != "198.51.100.20" || rows[0].Bytes != 1048576 {
+			t.Fatalf("unexpected flow rows: %+v", rows)
+		}
+	})
+
+	t.Run("exporter hostname filter", func(t *testing.T) {
+		var gotReq capturedGraphReq
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &gotReq)
+			_, _ = w.Write([]byte(`{"rows":[["192.0.2.1","198.51.100.2"]],"average":[1000],"total":[8000]}`))
+		}))
+		defer srv.Close()
+
+		client := akvorado.New(akvorado.Config{BaseURL: srv.URL})
+		rows, err := client.QueryFlows(context.Background(), "CORE-MX204-01", "", 5*time.Minute)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if gotReq.Filter != `ExporterName = "CORE-MX204-01"` {
+			t.Fatalf("unexpected exporter filter: %q", gotReq.Filter)
+		}
+		if len(rows) != 1 || rows[0].Bps != 1000 {
+			t.Fatalf("unexpected rows: %+v", rows)
+		}
+	})
 }
 
 func TestClient_ValidationAndHTTPError(t *testing.T) {
