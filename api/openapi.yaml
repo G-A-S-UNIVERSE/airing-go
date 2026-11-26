@@ -1,0 +1,24 @@
+openapi: 3.0.3
+info:
+  title: airing-go API
+  version: 0.1.0-dev
+  description: Vendor-neutral FTTH ISP platform — Go-native (OLT, Zabbix, LibreNMS, Akvorado)
+paths:
+  /healthz:
+    get:
+      summary: Liveness and readiness check
+      responses:
+        "200":
+          description: Service is healthy
+  /api/v1/olts:
+    get:
+      summary: List managed OLTs
+      responses:
+        "200":
+          description: List of registered OLT devices
+  /api/v1/onus:
+    get:
+      summary: List ONUs across managed OLTs
+      responses:
+        "200":
+          description: List of ONU operational states
