@@ -6,6 +6,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	_ "github.com/G-A-S-UNIVERSE/airing-go/internal/olt/generic"
+	_ "github.com/G-A-S-UNIVERSE/airing-go/internal/olt/zte"
 )
 
 func main() {
