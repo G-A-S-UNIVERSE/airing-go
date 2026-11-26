@@ -1,4 +1,4 @@
-airing
+/airing
 *.exe
 *.test
 *.out
@@ -9,3 +9,4 @@ coverage.xml
 .idea/
 .vscode/
 .DS_Store
+desktop.ini
