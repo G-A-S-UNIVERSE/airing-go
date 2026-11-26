@@ -1,0 +1,11 @@
+.git
+.github
+.env
+*.env
+*.exe
+*.test
+*.out
+coverage.xml
+desktop.ini
+docs
+*.md

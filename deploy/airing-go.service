@@ -1,0 +1,28 @@
+[Unit]
+Description=airing-go — Vendor-Neutral FTTH ISP Automation Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=airing
+Group=airing
+EnvironmentFile=/etc/airing-go/airing.env
+ExecStart=/usr/local/bin/airing-go
+Restart=on-failure
+RestartSec=5s
+
+# Resource governance
+Nice=10
+CPUQuota=15%
+MemoryMax=512M
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/etc/airing-go
+
+[Install]
+WantedBy=multi-user.target
