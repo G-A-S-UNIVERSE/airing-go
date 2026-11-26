@@ -14,8 +14,8 @@ import (
 // the package, which is how the enricher consumes it.
 func TestMockClientSatisfiesInterface(t *testing.T) {
 	var c akvorado.AkvoradoClient = &akvorado.MockClient{}
-	if c == nil {
-		t.Fatal("expected non-nil AkvoradoClient")
+	if _, err := c.QueryFlows(context.Background(), "", "", 0); err != nil {
+		t.Fatalf("unexpected error from default MockClient: %v", err)
 	}
 }
 

@@ -13,23 +13,23 @@ import (
 // the package, which is how the enricher consumes it.
 func TestMockClientSatisfiesInterface(t *testing.T) {
 	var c librenms.LibreNMSClient = &librenms.MockClient{}
-	if c == nil {
-		t.Fatal("expected non-nil LibreNMSClient")
+	if _, err := c.ListDevices(context.Background()); err != nil {
+		t.Fatalf("unexpected error from default MockClient: %v", err)
 	}
 }
 
 func TestMockClientGetDeviceUsesConfiguredFn(t *testing.T) {
-	want := &librenms.Device{DeviceID: 7, Hostname: "olt-huntap", Status: 1}
+	want := &librenms.Device{DeviceID: 7, Hostname: "olt-region1-01", Status: 1}
 	m := &librenms.MockClient{
 		GetDeviceFn: func(_ context.Context, hostname string) (*librenms.Device, error) {
-			if hostname != "olt-huntap" {
-				t.Errorf("hostname = %q, want %q", hostname, "olt-huntap")
+			if hostname != "olt-region1-01" {
+				t.Errorf("hostname = %q, want %q", hostname, "olt-region1-01")
 			}
 			return want, nil
 		},
 	}
 
-	got, err := m.GetDevice(context.Background(), "olt-huntap")
+	got, err := m.GetDevice(context.Background(), "olt-region1-01")
 	if err != nil {
 		t.Fatalf("GetDevice error: %v", err)
 	}
@@ -38,8 +38,8 @@ func TestMockClientGetDeviceUsesConfiguredFn(t *testing.T) {
 	}
 
 	calls := m.GetDeviceCalls()
-	if len(calls) != 1 || calls[0] != "olt-huntap" {
-		t.Errorf("GetDeviceCalls() = %v, want [olt-huntap]", calls)
+	if len(calls) != 1 || calls[0] != "olt-region1-01" {
+		t.Errorf("GetDeviceCalls() = %v, want [olt-region1-01]", calls)
 	}
 }
 
