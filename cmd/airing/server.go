@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -19,18 +18,23 @@ import (
 	"github.com/G-A-S-UNIVERSE/airing-go/pkg/notify"
 )
 
-const appVersion = "0.1.1"
+const appVersion = "0.2.0"
 
 type serverConfig struct {
 	APIToken      string
 	WebhookSecret string
 	Bus           *eventbus.Bus
+	OLTs          *OLTManager
 	Logger        *slog.Logger
 }
 
 type oltSummary struct {
-	Key       string `json:"key"`
-	Connected bool   `json:"connected"`
+	Key        string `json:"key"`
+	Name       string `json:"name,omitempty"`
+	Vendor     string `json:"vendor,omitempty"`
+	Connected  bool   `json:"connected"`
+	Configured bool   `json:"configured"`
+	ReadOnly   bool   `json:"read_only"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -73,25 +77,54 @@ func newMux(cfg serverConfig) http.Handler {
 	mux.Handle("POST /webhooks/zabbix", webhook.NewZabbixHandler(cfg.WebhookSecret, cfg.Bus, logger))
 
 	mux.HandleFunc("GET /olts", requireBearer(cfg.APIToken, func(w http.ResponseWriter, _ *http.Request) {
-		keys := olt.Keys()
-		sort.Strings(keys)
-		out := make([]oltSummary, 0, len(keys))
-		for _, k := range keys {
-			out = append(out, oltSummary{Key: k, Connected: false})
+		writeJSON(w, http.StatusOK, cfg.OLTs.ListSummaries())
+	}))
+
+	mux.HandleFunc("GET /olts/{key}/summary", requireBearer(cfg.APIToken, func(w http.ResponseWriter, r *http.Request) {
+		key := r.PathValue("key")
+		force := r.URL.Query().Get("refresh") == "1"
+		sum, status, err := cfg.OLTs.Summary(r.Context(), key, force)
+		if err != nil {
+			writeJSON(w, status, map[string]string{"error": err.Error()})
+			return
 		}
-		writeJSON(w, http.StatusOK, out)
+		writeJSON(w, http.StatusOK, sum)
+	}))
+
+	mux.HandleFunc("GET /olts/{key}/onus", requireBearer(cfg.APIToken, func(w http.ResponseWriter, r *http.Request) {
+		key := r.PathValue("key")
+		statusFilter := r.URL.Query().Get("status")
+		force := r.URL.Query().Get("refresh") == "1"
+		onus, status, err := cfg.OLTs.ListONUs(r.Context(), key, statusFilter, force)
+		if err != nil {
+			writeJSON(w, status, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"key":       key,
+			"read_only": true,
+			"count":     len(onus),
+			"onus":      onus,
+		})
+	}))
+
+	mux.HandleFunc("GET /olts/{key}/onus/{onuID}", requireBearer(cfg.APIToken, func(w http.ResponseWriter, r *http.Request) {
+		key := r.PathValue("key")
+		onuID := r.PathValue("onuID")
+		st, status, err := cfg.OLTs.GetONU(r.Context(), key, onuID)
+		if err != nil {
+			writeJSON(w, status, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, st)
 	}))
 
 	mux.HandleFunc("POST /olts/{key}/reboot/{onuID}", requireBearer(cfg.APIToken, func(w http.ResponseWriter, r *http.Request) {
 		key := r.PathValue("key")
 		onuID := r.PathValue("onuID")
-		adapter, err := olt.New(key)
+		status, err := cfg.OLTs.RebootONU(r.Context(), key, onuID)
 		if err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
-			return
-		}
-		if err := adapter.RebootONU(r.Context(), onuID); err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+			writeJSON(w, status, map[string]string{"error": err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})

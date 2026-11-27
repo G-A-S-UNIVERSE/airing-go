@@ -63,6 +63,15 @@ func main() {
 		logger.Info("webhook notifier enabled")
 	}
 
+	olts, err := NewOLTManager(os.Getenv("AIRING_OLTS_JSON"))
+	if err != nil {
+		logger.Error("invalid AIRING_OLTS_JSON config", "error", err)
+		os.Exit(1)
+	}
+	if olts.Count() > 0 {
+		logger.Info("olt manager initialized", "configured_olts", olts.Count(), "read_only", true)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -76,7 +85,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              listenAddr,
-		Handler:           newMux(serverConfig{APIToken: os.Getenv("AIRING_API_TOKEN"), WebhookSecret: os.Getenv("ZABBIX_WEBHOOK_SECRET"), Bus: bus, Logger: logger}),
+		Handler:           newMux(serverConfig{APIToken: os.Getenv("AIRING_API_TOKEN"), WebhookSecret: os.Getenv("ZABBIX_WEBHOOK_SECRET"), Bus: bus, OLTs: olts, Logger: logger}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

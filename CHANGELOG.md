@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-27
+
+### Added
+- Strict read-only ZTE C320 Telnet CLI driver (`internal/olt/zte`) with command allowlist (`ValidateReadOnlyCommand`), ONU ID validation, optical Rx power parser, and `ErrReadOnlyMode` reboot lock
+- Multi-OLT configuration and 60s TTL cache (`cmd/airing/olt_manager.go`) via `AIRING_OLTS_JSON`
+- Read-only telemetry HTTP endpoints: `GET /olts/{key}/summary`, `GET /olts/{key}/onus`, `GET /olts/{key}/onus/{onuID}`
+
+## [0.1.1] - 2026-11-27
 
 ### Added
 - Generic `WebhookNotifier` (`pkg/notify/webhook.go`) with optional Bearer auth and `Multi` dispatcher (`pkg/notify/multi.go`)
