@@ -5,8 +5,10 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"log/slog"
+	"maps"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/G-A-S-UNIVERSE/airing-go/internal/enricher"
@@ -17,7 +19,7 @@ import (
 	"github.com/G-A-S-UNIVERSE/airing-go/pkg/notify"
 )
 
-const appVersion = "0.1.0"
+const appVersion = "0.1.1"
 
 type serverConfig struct {
 	APIToken      string
@@ -151,9 +153,28 @@ func processEvent(
 			Severity: sev,
 			Source:   "zabbix",
 			Message:  act.Message,
-			Metadata: ev.Tags,
+			Metadata: buildNotifyMetadata(ev),
 		}); err != nil {
 			logger.Error("worker: notify failed", "event_id", ev.ID, "error", err)
 		}
 	}
+}
+
+func buildNotifyMetadata(ev eventbus.Event) map[string]string {
+	meta := make(map[string]string, len(ev.Tags)+7)
+	maps.Copy(meta, ev.Tags)
+	meta["host"] = ev.Host
+	meta["event_id"] = ev.ID
+	meta["status"] = ev.Status
+	meta["zabbix_severity"] = ev.Severity
+	meta["flow_records"] = strconv.Itoa(len(ev.Flows))
+	if ev.Device != nil {
+		if ev.Device.Hostname != "" {
+			meta["device_hostname"] = ev.Device.Hostname
+		}
+		if ev.Device.SysName != "" {
+			meta["device_sysname"] = ev.Device.SysName
+		}
+	}
+	return meta
 }

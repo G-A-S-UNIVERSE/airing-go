@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Generic `WebhookNotifier` (`pkg/notify/webhook.go`) with optional Bearer auth and `Multi` dispatcher (`pkg/notify/multi.go`)
+- Configurable `AIRING_NOTIFY_WEBHOOK_URL` and `AIRING_NOTIFY_WEBHOOK_TOKEN` environment variables
+- Enriched metadata forwarding (`host`, `event_id`, `status`, `zabbix_severity`, `flow_records`, LibreNMS device fields) in `processEvent`
+
 ## [0.1.0-go] - 2026-11-26
 
 ### Added

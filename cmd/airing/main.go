@@ -18,6 +18,7 @@ import (
 	_ "github.com/G-A-S-UNIVERSE/airing-go/internal/olt/generic"
 	_ "github.com/G-A-S-UNIVERSE/airing-go/internal/olt/zte"
 	"github.com/G-A-S-UNIVERSE/airing-go/internal/rules"
+	"github.com/G-A-S-UNIVERSE/airing-go/pkg/notify"
 )
 
 func parseLogLevel(raw string) slog.Level {
@@ -53,7 +54,14 @@ func main() {
 	})
 	enr := enricher.New(lnms, akv, 5*time.Second, logger)
 	eng := rules.New()
-	notifier := &slogNotifier{logger: logger}
+	var notifier notify.Notifier = &slogNotifier{logger: logger}
+	if whURL := strings.TrimSpace(os.Getenv("AIRING_NOTIFY_WEBHOOK_URL")); whURL != "" {
+		notifier = notify.Multi{
+			notifier,
+			notify.NewWebhook(whURL, os.Getenv("AIRING_NOTIFY_WEBHOOK_TOKEN")),
+		}
+		logger.Info("webhook notifier enabled")
+	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

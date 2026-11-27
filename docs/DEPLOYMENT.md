@@ -18,6 +18,8 @@ Required variables:
 | `LIBRENMS_URL`, `LIBRENMS_API_TOKEN` | LibreNMS REST endpoint & `X-Auth-Token` |
 | `AKVORADO_URL` | Akvorado flow query endpoint |
 | `AIRING_LISTEN_ADDR` | HTTP bind address (default `:8090`) |
+| `AIRING_NOTIFY_WEBHOOK_URL` | Optional outbound webhook URL (e.g. `https://example.internal/hooks/airing`) |
+| `AIRING_NOTIFY_WEBHOOK_TOKEN` | Optional Bearer token sent in `Authorization` header for outbound webhook |
 
 ## 2. Linux Binary + systemd
 

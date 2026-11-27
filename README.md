@@ -12,7 +12,8 @@
 | Execution | OLT adapters | ONU management (ZTE, Huawei, C-DATA, FiberHome) |
 
 External systems (CRM chatbox, Slack, PagerDuty) receive events through the
-`Notifier` interface — airing-go itself never imports any concrete notifier.
+`Notifier` interface (including a built-in generic `WebhookNotifier` enabled
+via `AIRING_NOTIFY_WEBHOOK_URL` and `AIRING_NOTIFY_WEBHOOK_TOKEN`).
 
 ## Status
 
